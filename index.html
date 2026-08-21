@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂投票系统 - Classroom Voting System</title>
+    <!-- 引入 Tailwind CSS 用于快速构建现代 UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide 图标库 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .card-shadow {
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+
+        /* 渐变背景样式 */
+        .bg-gold { background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border: 1px solid #fde047; }
+        .bg-silver { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #cbd5e1; }
+        .bg-bronze { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fed7aa; }
+
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-slate-900 pb-20">
+
+    <div class="max-w-5xl mx-auto px-4 py-12">
+        <!-- 头部标题区 -->
+        <header class="text-center mb-12">
+            <div class="flex items-center justify-center gap-3 mb-4">
+                <i data-lucide="trophy" class="w-10 h-10 text-slate-800"></i>
+                <h1 class="text-4xl font-bold tracking-tight text-slate-900">Classroom Voting System</h1>
+            </div>
+            <p class="text-slate-500 text-lg mb-8">为你的候选人投票，实时查看排行榜更新</p>
+            
+            <!-- 统计数据 -->
+            <div class="flex items-center justify-center gap-4">
+                <div class="bg-white px-4 py-2 rounded-full border border-slate-200 flex items-center gap-2 shadow-sm">
+                    <i data-lucide="users" class="w-4 h-4 text-slate-500"></i>
+                    <span class="text-sm font-medium text-slate-700"><span id="totalCandidatesCount">0</span> Candidates</span>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-full border border-slate-200 flex items-center gap-2 shadow-sm">
+                    <i data-lucide="vote" class="w-4 h-4 text-slate-500"></i>
+                    <span class="text-sm font-medium text-slate-700"><span id="totalVotesCount">0</span> Total Votes</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Top 3 排行榜 -->
+        <section class="mb-12">
+            <div class="bg-white rounded-2xl p-8 card-shadow border border-slate-100">
+                <div class="flex items-center gap-2 mb-8">
+                    <i data-lucide="medal" class="w-6 h-6 text-slate-800"></i>
+                    <h2 class="text-xl font-bold">Top 3 Leaderboard</h2>
+        </div>
+
+                <div id="podiumContainer" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- 动态渲染前三名 -->
+                    <div class="flex items-center justify-center py-12 text-slate-400 italic">
+                        等待投票数据...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 所有候选人列表 -->
+        <section>
+            <div class="bg-white rounded-2xl p-8 card-shadow border border-slate-100">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="users-2" class="w-6 h-6 text-slate-800"></i>
+                        <h2 class="text-xl font-bold">All Candidates</h2>
+            </div>
+                    <div class="flex gap-3">
+                        <button onclick="openImportModal()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-sm font-medium">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                            Import Candidates
+                        </button>
+                        <button onclick="resetData()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 transition-colors text-sm font-medium">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                            Reset
+                        </button>
+                        <button onclick="lockTopFive()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-100 text-amber-700 hover:bg-amber-50 transition-colors text-sm font-medium">
+                            <i data-lucide="lock" class="w-4 h-4"></i>
+                            Lock
+                        </button>
+            </div>
+        </div>
+
+                <div id="candidatesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- 动态渲染所有候选人 -->
+                    <div class="col-span-full py-12 text-center">
+                        <div class="text-slate-400 mb-4">暂无候选人，请先导入</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        </div>
+
+    <!-- 导入弹窗 -->
+    <div id="importModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">导入候选人</h3>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+                </div>
+            <textarea id="nameInput" class="w-full h-40 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all mb-4" placeholder="每行输入一个名字..."></textarea>
+            <button onclick="handleImport()" class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
+                确认导入
+            </button>
+        </div>
+    </div>
+
+    <!-- 吐司通知 -->
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none z-[100]">
+        通知内容
+    </div>
+
+    <script type="module">
+        // --- Firebase 初始化 ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getDatabase, 
+            ref, 
+            set, 
+            onValue, 
+            push, 
+            runTransaction,
+            remove
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // 您的 Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyCm8T8NDeyyrsYZD2jeeruVNTVXxAGB0JI",
+            authDomain: "vote-test-58b89.firebaseapp.com",
+            databaseURL: "https://vote-test-58b89-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "vote-test-58b89",
+            storageBucket: "vote-test-58b89.firebasestorage.app",
+            messagingSenderId: "477146421009",
+            appId: "1:477146421009:web:8bfff2dc2ed977b0275eb0"
+        };
+
+        // 初始化 Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const candidatesRef = ref(db, 'candidates');
+
+        // --- 增强：连接状态检查 ---
+        const connectedRef = ref(db, ".info/connected");
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                console.log("已成功连接到 Firebase 云端数据库");
+            } else {
+                console.warn("与云端数据库连接断开，正在重连...");
+                // 如果长时间不显示数据，可能是 databaseURL 不对
+                setTimeout(() => {
+                    if (candidates.length === 0) {
+                        showToast("连接云端较慢，请检查数据库 URL 是否正确", 5000);
+                    }
+                }, 3000);
+            }
+        });
+
+        // --- 数据管理 ---
+        let candidates = [];
+        // 本地存储仍然用来记录“我投过谁”，防止单设备刷票
+        let userVotes = JSON.parse(localStorage.getItem('user_votes') || '[]');
+
+        // --- 核心逻辑 ---
+
+        // 实时监听云端数据
+        // 每当数据库中的 candidates 发生变化，这个函数都会自动执行
+        onValue(candidatesRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // 将 Firebase 的对象格式转换为数组
+                candidates = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+            } else {
+                candidates = [];
+            }
+            render();
+            console.log("云端数据已同步:", candidates);
+        });
+
+        // 投票函数 (使用事务确保并发安全)
+        window.vote = function(candidateId) {
+            if (userVotes.includes(candidateId)) {
+                showToast("您已经为这位候选人投过票了！");
+                return;
+            }
+
+            const candidate = candidates.find(c => c.id === candidateId);
+            const candidateName = candidate ? candidate.name : "该候选人";
+
+            // 新增：二次确认弹窗
+            if (!confirm(`确定要为 [${candidateName}] 投出一票吗？\n注意：投出后不可取消。`)) {
+                return;
+            }
+
+            const candidateVoteRef = ref(db, `candidates/${candidateId}/votes`);
+            
+            // 使用 runTransaction 确保当两个人在同一毫秒投票时，票数不会出错
+            runTransaction(candidateVoteRef, (currentVotes) => {
+                return (currentVotes || 0) + 1;
+            }).then(() => {
+                userVotes.push(candidateId);
+                localStorage.setItem('user_votes', JSON.stringify(userVotes));
+                showToast("投票成功！已同步到云端");
+            }).catch((error) => {
+                console.error("投票失败:", error);
+                showToast("投票失败，请稍后重试");
+            });
+        };
+
+        // 导入逻辑
+        window.handleImport = async function() {
+            const text = document.getElementById('nameInput').value.trim();
+            if (!text) return;
+
+            const names = text.split('\n').map(n => n.trim()).filter(n => n);
+            let addedCount = 0;
+            const promises = [];
+
+            names.forEach(name => {
+                // 防止同名导入 (云端查重)
+                if (!candidates.some(c => c.name === name)) {
+                    const newCandidateRef = push(candidatesRef);
+                    const p = set(newCandidateRef, {
+                        name: name,
+                        votes: 0
+                    });
+                    promises.push(p);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                try {
+                    // 等待所有写入完成
+                    await Promise.all(promises);
+                    closeImportModal();
+                    showToast(`成功导入 ${addedCount} 位候选人到云端`);
+                    document.getElementById('nameInput').value = '';
+                } catch (error) {
+                    console.error("导入失败:", error);
+                    showToast(`导入失败: ${error.message}`);
+                }
+            } else {
+                showToast("未检测到新的候选人名字");
+            }
+        };
+
+        // 重置数据
+        window.resetData = function() {
+            // 新增：密码校验
+            const password = prompt("请输入重置密码以执行此操作：");
+            if (password !== "0123") {
+                showToast("密码错误，无法重置数据", 2000);
+                return;
+            }
+
+            if (confirm('警告：确定要清除云端所有数据吗？这将重置所有人的投票。')) {
+                remove(candidatesRef).then(() => {
+                    userVotes = [];
+                    localStorage.setItem('user_votes', '[]');
+                    showToast("云端数据已清空");
+                });
+            }
+        };
+
+        // 锁定前 5 名：给当前前 5 名每人增加 1 票，用于拉开第 5、6 名边界
+        window.lockTopFive = async function() {
+            const password = prompt("请输入锁定密码以执行此操作：");
+            if (password !== "0123") {
+                showToast("密码错误，无法锁定票数", 2000);
+                return;
+            }
+
+            const sorted = getSortedCandidates();
+            if (sorted.length < 5) {
+                showToast("候选人不足 5 位，无法锁定前 5 名", 2500);
+                return;
+            }
+
+            const topFive = sorted.slice(0, 5);
+
+            try {
+                await Promise.all(topFive.map(candidate => {
+                    const candidateVoteRef = ref(db, `candidates/${candidate.id}/votes`);
+                    return runTransaction(candidateVoteRef, (currentVotes) => {
+                        return (Number(currentVotes) || 0) + 1;
+                    });
+                }));
+                showToast("已锁定：当前前 5 名每人增加 1 票");
+            } catch (error) {
+                console.error("锁定失败:", error);
+                showToast("锁定失败，请稍后重试");
+            }
+        };
+
+        // --- 渲染函数 ---
+
+        function render() {
+            renderStats();
+            renderPodium();
+            renderCandidatesGrid();
+            lucide.createIcons(); // 重新初始化图标
+        }
+
+        function renderStats() {
+            document.getElementById('totalCandidatesCount').textContent = candidates.length;
+            const totalVotes = candidates.reduce((sum, c) => sum + (c.votes || 0), 0);
+            document.getElementById('totalVotesCount').textContent = totalVotes;
+        }
+
+        function renderPodium() {
+            const container = document.getElementById('podiumContainer');
+            if (candidates.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 italic font-medium">等待候选人导入...</div>`;
+                return;
+            }
+
+            const sorted = getSortedCandidates();
+            const top3 = sorted.slice(0, 3);
+
+            if (top3.length === 0 || (top3[0].votes || 0) === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 italic font-medium">暂无投票数据</div>`;
+                return;
+            }
+
+            const styles = [
+                { bg: 'bg-gold', icon: 'crown', color: 'text-yellow-600', rank: '#1' },
+                { bg: 'bg-silver', icon: 'medal', color: 'text-slate-500', rank: '#2' },
+                { bg: 'bg-bronze', icon: 'award', color: 'text-orange-600', rank: '#3' }
+            ];
+
+            container.innerHTML = top3.map((c, i) => `
+                <div class="${styles[i].bg} rounded-2xl p-6 relative overflow-hidden transition-transform hover:scale-[1.02]">
+                    <div class="flex justify-between items-start mb-6">
+                        <span class="text-sm font-bold ${styles[i].color}">${styles[i].rank}</span>
+                        <i data-lucide="${styles[i].icon}" class="w-6 h-6 ${styles[i].color}"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <h3 class="text-xl font-bold mb-2">${escapeHtml(c.name)}</h3>
+                        <p class="text-3xl font-black ${styles[i].color}">${c.votes || 0} <span class="text-sm font-medium opacity-70">votes</span></p>
+                    </div>
+                    <div class="absolute -right-4 -bottom-4 opacity-10">
+                         <i data-lucide="${styles[i].icon}" class="w-24 h-24"></i>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCandidatesGrid() {
+            const grid = document.getElementById('candidatesGrid');
+            if (candidates.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 italic">暂无候选人，请先点击右上角导入</div>`;
+                return;
+            }
+
+            const sorted = getSortedCandidates();
+
+            grid.innerHTML = sorted.map((c, index) => {
+                const hasVoted = userVotes.includes(c.id);
+                return `
+                <div class="group bg-slate-50 border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:bg-white hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-500 group-hover:bg-slate-900 group-hover:text-white transition-colors">#${index + 1}</span>
+                            <h4 class="font-bold text-slate-800">${escapeHtml(c.name)}</h4>
+                        </div>
+                        <button onclick="vote('${c.id}')" 
+                                class="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all ${hasVoted ? 'bg-green-100 text-green-700 cursor-default' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-sm active:scale-95'}">
+                            <i data-lucide="${hasVoted ? 'check' : 'plus'}" class="w-3.5 h-3.5"></i>
+                            ${hasVoted ? '已投票' : '投票'}
+                        </button>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <p class="text-2xl font-black text-slate-900">${c.votes || 0}</p>
+                            <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400">当前总票数</p>
+                        </div>
+                        <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-slate-900 transition-all duration-500" style="width: ${calculateProgress(c.votes || 0)}%"></div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function calculateProgress(votes) {
+            if (votes === 0) return 0;
+            const maxVotes = Math.max(...candidates.map(c => c.votes || 0));
+            return (votes / maxVotes) * 100;
+        }
+
+        function getSortedCandidates() {
+            return [...candidates].sort((a, b) => (b.votes || 0) - (a.votes || 0));
+        }
+
+        // --- 工具函数 ---
+        window.openImportModal = function() { document.getElementById('importModal').classList.remove('hidden'); }
+        window.closeImportModal = function() { document.getElementById('importModal').classList.add('hidden'); }
+
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, duration);
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // 初始化图标
+        lucide.createIcons();
+    </script>
+</body>
+</html>
